@@ -1,91 +1,77 @@
-import os
+import pygame
 import random
 
-def main():
-    x = 15
-    y = 10
+pygame.init()
 
-    head = [x//2, y//2 - 1]
-    body = [[x//2 - 1, y//2 - 1], [x//2 - 2, y//2 - 1]]
-    direction = [1, 0]
-    score = 0
-    apple = []
-    def spawn_apple(old_head = head):
-        nonlocal  apple
-        while True:
-            apple = [random.randrange(x), random.randrange(y)]
-            if apple != head and apple not in body:
-                break
+TILE = 32
+GRID_W = 15
+GRID_H = 10
 
-    spawn_apple()
+screen = pygame.display.set_mode((GRID_W * TILE, GRID_H * TILE))
+clock = pygame.time.Clock()
 
-    def draw():
-        grid = [[" " for _ in range(x)] for _ in range(y)]
-        grid[apple[1]][apple[0]] = "A"
-        grid[head[1]][head[0]] = "H"
-        for b in body:
-            grid[b[1]][b[0]] = "B"
+# Snake setup
+head = [GRID_W//2, GRID_H//2]
+body = [[head[0]-1, head[1]], [head[0]-2, head[1]]]
+direction = [1, 0]
 
-        # Color lookup table
-        colors = {
-            "W": "\033[107m  \033[0m",  # white
-            " ": "\033[40m  \033[0m",  # black
-            "A": "\033[41m  \033[0m",  # red
-            "H": "\033[44m  \033[0m",  # blue
-            "B": "\033[42m  \033[0m",  # green
-        }
-        # Render
-        # Top border
-        print("".join(colors["W"] for _ in range(x + 2)))
-
-        for row in grid:
-            inside = "".join(colors[cell] for cell in row)
-            print(colors["W"] + inside + colors["W"])
-
-        # Bottom border
-        print("".join(colors["W"] for _ in range(x + 2)))
-
-    def move(grow=False):
-        old_head = head.copy()
-        head[0] += direction[0]
-        head[1] += direction[1]
-        body.insert(0, old_head)
-        if not grow:
-            body.pop()
-
-    def is_outside(h):
-        return h[0] < 0 or h[0] >= x or h[1] < 0 or h[1] >= y
-
-    print(score)
-    draw()
-
+def spawn_apple():
     while True:
-        inp = input("> ")
+        pos = [random.randrange(GRID_W), random.randrange(GRID_H)]
+        if pos != head and pos not in body:
+            return pos
 
-        match inp:
-            case "w":
-                if direction != [0, 1]:
-                    direction = [0, -1]
-            case "a":
-                if direction != [1, 0]:
-                    direction = [-1, 0]
-            case "d":
-                if direction != [-1, 0]:
-                    direction = [1, 0]
-            case "s":
-                if direction != [0, -1]:
-                    direction = [0, 1]
+apple = spawn_apple()
+score = 0
 
-        if [head[0] + direction[0], head[1] + direction[1]] == apple:
-            move(grow=True)
-            spawn_apple()
-            score += 1
-        else: move()
-        if is_outside(head) or head in body:
-            print("Game Over\nScore: {}".format(score))
-            break
-        os.system("cls" if os.name == "nt" else "clear")
-        print(score)
-        draw()
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w and direction != [0, 1]:
+                direction = [0, -1]
+            elif event.key == pygame.K_s and direction != [0, -1]:
+                direction = [0, 1]
+            elif event.key == pygame.K_a and direction != [1, 0]:
+                direction = [-1, 0]
+            elif event.key == pygame.K_d and direction != [-1, 0]:
+                direction = [1, 0]
 
-main()
+    # Move snake
+    new_head = [head[0] + direction[0], head[1] + direction[1]]
+    body.insert(0, head.copy())
+    head = new_head
+
+    # Apple
+    if head == apple:
+        apple = spawn_apple()
+        score += 1
+    else:
+        body.pop()
+
+    # Collision
+    if (head[0] < 0 or head[0] >= GRID_W or
+        head[1] < 0 or head[1] >= GRID_H or
+        head in body):
+        print("Game Over! Score:", score)
+        running = False
+
+    # Draw
+    screen.fill((0, 0, 0))
+
+    # Apple
+    pygame.draw.rect(screen, (255, 0, 0), (apple[0]*TILE, apple[1]*TILE, TILE, TILE))
+
+    # Body
+    for b in body:
+        pygame.draw.rect(screen, (0, 255, 0), (b[0]*TILE, b[1]*TILE, TILE, TILE))
+
+    # Head
+    pygame.draw.rect(screen, (0, 0, 255), (head[0]*TILE, head[1]*TILE, TILE, TILE))
+
+    pygame.display.flip()
+    clock.tick(10)
+
+pygame.quit()
